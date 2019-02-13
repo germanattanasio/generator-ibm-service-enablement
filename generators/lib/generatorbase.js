@@ -150,14 +150,18 @@ module.exports = class extends Generator {
 	_addServicesToKubeDeploy(serviceInfo) {
 		this.logger.info(`adding Deployment service env info for ${this.scaffolderName}`);
 
+		let sanitizedServiceName = this._sanitizeServiceName(this.serviceName)
 		let serviceEnv = {
-			name: this._sanitizeServiceName(this.serviceName),
+			name: sanitizedServiceName,
 			valueFrom: {
 				secretKeyRef: {
-					name: `binding-${serviceInfo.name}`,
+					name: `{{ .Values.services.${this.scaffolderName}.secretKeyRef}}`,
+					// name: `binding-${serviceInfo.name}`,
 					key: 'binding'
 				}
-			}
+			},
+			keyName: `${serviceInfo.name}`,
+			scaffolderName: `${this.scaffolderName}`
 		};
 
 		if (!this.context.deploymentServicesEnv) {

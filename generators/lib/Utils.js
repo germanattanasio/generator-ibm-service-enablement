@@ -103,6 +103,80 @@ function appendDeploymentYaml(deploymentFilePath, services, resolve, reject) {
 	});
 }
 
+function addServicesEnvToValuesAsync(args) {
+	return new Promise((resolve, reject) => {
+		let context = args.context;
+		let destinationPath = args.destinationPath;
+
+		logger.level = context.loggerLevel;
+
+		let hasServices = context.deploymentServicesEnv && context.deploymentServicesEnv.length > 0;
+		if (!hasServices) {
+			logger.info('No services to add');
+			return resolve();
+		}
+
+		// values.yaml should've been generated in the generator-ibm-cloud-enablement generator
+		// for deploy to Kubernetes using Helm chart
+		let chartFolderPath = `${destinationPath}/chart`;
+		if (!fs.existsSync(chartFolderPath)) {
+			logger.info('/chart folder does not exist');
+			return resolve();
+		}
+
+		let valuesFilePath = `${chartFolderPath}/${context.sanitizedAppName}/values.yaml`;
+		let valuesFileExists = fs.existsSync(valuesFilePath);
+		logger.info(`values.yaml exists (${valuesFileExists}) at ${valuesFilePath}`);
+
+		if ( !valuesFileExists ){
+			logger.info(`Can't find values.yaml, checking /chart directory`);
+
+			// chart could've been created with different name than expected
+			// there should only be one folder under /chart, but just in case
+			let chartFolders = fs.readdirSync(`${chartFolderPath}`);
+			for (let i = 0; i < chartFolders.length; i++) {
+
+				valuesFilePath = `${chartFolderPath}/${chartFolders[i]}/values.yaml`;
+				valuesFileExists = fs.existsSync(valuesFilePath);
+				logger.info(`values.yaml exists (${valuesFileExists}) at ${valuesFilePath}`);
+
+				if (valuesFileExists) {
+					break;
+				}
+			}
+		}
+
+		if ( valuesFileExists ) {
+			logger.info(`Adding ${context.deploymentServicesEnv.length} services in values.yaml` );
+			return appendValuesYaml(valuesFilePath, context.deploymentServicesEnv, resolve, reject);
+		} else {
+			logger.error('values.yaml not found, cannot add services');
+			return resolve();
+		}
+	});
+}
+
+function appendValuesYaml(valuesFilePath, services, resolve, reject) {
+	// values file is a straight-up append, with no special indenting required
+	fs.readFile(valuesFilePath, 'utf-8', (err, data) => {
+		if (err) {
+			return reject(err);
+		}
+		data = data.trim() + '\n' + generateSecretRefsValues(services);
+		console.log(data);
+
+		fs.writeFile(valuesFilePath, data, (err) => {
+			if (err) {
+				logger.error('failed to write updated values.yaml to filesystem: ' + err.message);
+				return reject(err);
+			} else {
+				logger.info('finished updating values.yaml and wrote to filesystem');
+				return resolve();
+			}
+		});
+	});
+}
+
 function generateSecretKeyReferences(services, prefix) {
 	let servicesEnvString = '';
 	services.forEach((serviceEntry) => {
@@ -113,6 +187,16 @@ function generateSecretKeyReferences(services, prefix) {
 			`${prefix}      name: ${serviceEntry.valueFrom.secretKeyRef.name}\n` +
 			`${prefix}      key: ${serviceEntry.valueFrom.secretKeyRef.key}\n` +
 			`${prefix}      optional: true\n`;
+	});
+	return servicesEnvString;
+}
+
+function generateSecretRefsValues(services) {
+	let servicesEnvString = 'services:\n';
+	services.forEach((serviceEntry) => {
+		servicesEnvString +=
+			`  ${serviceEntry.scaffolderName}:\n` +
+			`    secretKeyRef: ${serviceEntry.keyName}\n`
 	});
 	return servicesEnvString;
 }
@@ -185,5 +269,6 @@ function addServicesToPipelineYamlAsync(args) {
 
 module.exports = {
 	addServicesEnvToHelmChartAsync: addServicesEnvToHelmChartAsync,
-	addServicesToPipelineYamlAsync: addServicesToPipelineYamlAsync
+	addServicesToPipelineYamlAsync: addServicesToPipelineYamlAsync,
+	addServicesEnvToValuesAsync: addServicesEnvToValuesAsync
 };
