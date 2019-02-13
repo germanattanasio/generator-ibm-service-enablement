@@ -31,15 +31,11 @@ function addServicesEnvToHelmChartAsync(args) {
 			return resolve();
 		}
 
-		let bindingsFilePath = `${chartFolderPath}/${context.sanitizedAppName}/bindings.yaml`;
-		let bindingsFileExists = fs.existsSync(bindingsFilePath);
-		logger.info(`bindings.yaml exists (${bindingsFileExists}) at ${bindingsFilePath}`);
-
 		let deploymentFilePath = `${chartFolderPath}/${context.sanitizedAppName}/templates/deployment.yaml`;
 		let deploymentFileExists = fs.existsSync(deploymentFilePath);
 		logger.info(`deployment.yaml exists (${deploymentFileExists}) at ${deploymentFilePath}`);
 
-		if ( !bindingsFileExists && ! deploymentFileExists ){
+		if ( !deploymentFileExists ){
 			logger.info(`Can't find required yaml files, checking /chart directory`);
 
 			// chart could've been created with different name than expected
@@ -47,51 +43,23 @@ function addServicesEnvToHelmChartAsync(args) {
 			let chartFolders = fs.readdirSync(`${chartFolderPath}`);
 			for (let i = 0; i < chartFolders.length; i++) {
 
-				bindingsFilePath = `${chartFolderPath}/${chartFolders[i]}/bindings.yaml`;
-				bindingsFileExists = fs.existsSync(bindingsFilePath);
-				logger.info(`bindings.yaml exists (${bindingsFileExists}) at ${bindingsFilePath}`);
-
 				deploymentFilePath = `${chartFolderPath}/${chartFolders[i]}/templates/deployment.yaml`;
 				deploymentFileExists = fs.existsSync(deploymentFilePath);
 				logger.info(`deployment.yaml exists (${deploymentFileExists}) at ${deploymentFilePath}`);
 
-				if (bindingsFileExists || deploymentFileExists) {
+				if (deploymentFileExists) {
 					break;
 				}
 			}
 		}
 
-		if ( bindingsFileExists ) {
-			logger.info(`Adding ${context.deploymentServicesEnv.length} to env in bindings.yaml` );
-			return appendBindingsYaml(bindingsFilePath, context.deploymentServicesEnv, resolve, reject);
-		} else if ( deploymentFileExists ) {
+		if ( deploymentFileExists ) {
 			logger.info(`Adding ${context.deploymentServicesEnv.length} to env in deployment.yaml` );
 			return appendDeploymentYaml(deploymentFilePath, context.deploymentServicesEnv, resolve, reject);
 		} else {
 			logger.error('deployment.yaml not found, cannot add services to env');
 			return resolve();
 		}
-	});
-}
-
-function appendBindingsYaml(bindingsFilePath, services, resolve, reject) {
-	// Bindings file is a straight-up append, with no special indenting required
-	fs.readFile(bindingsFilePath, 'utf-8', (err, data) => {
-		if (err) {
-			return reject(err);
-		}
-		data = data.trim() + '\n' + generateSecretKeyReferences(services, '');
-		//console.log(data);
-
-		fs.writeFile(bindingsFilePath, data, (err) => {
-			if (err) {
-				logger.error('failed to write updated bindings.yaml to filesystem: ' + err.message);
-				return reject(err);
-			} else {
-				logger.info('finished updating bindings.yaml and wrote to filesystem');
-				return resolve();
-			}
-		});
 	});
 }
 
