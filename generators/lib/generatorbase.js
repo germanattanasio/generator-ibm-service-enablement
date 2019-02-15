@@ -21,6 +21,7 @@ const fs = require('fs');
 const camelCase = require('lodash/camelCase');
 const path = require('path');
 const Handlebars = require('handlebars');
+const Utils = require('../lib/Utils');
 
 const REGEX_HYPHEN = /-/g;
 
@@ -58,6 +59,7 @@ module.exports = class extends Generator {
 	 */
 
 	configuring(config) {
+		console.log('PWB PWB PWB this.context.language = ' + this.context.language);
 		this.hasBluemixProperty = this.context.bluemix.hasOwnProperty(this.scaffolderName);
 		this.hasTemplate = fs.existsSync(this.languageTemplatePath);
 		if (this.hasBluemixProperty && !this.hasTemplate) {
@@ -234,9 +236,11 @@ module.exports = class extends Generator {
 
 		let template = Handlebars.compile(mapping);
 
+		let localServiceKey = this.context.language === "java-spring" ? Utils.getSpringServiceKey(this.serviceKey) : this.serviceKey;
+
 		let context = {
 			serviceName: serviceCredentials.serviceInfo.name,
-			serviceKey: this.serviceKey.replace(/-/g, '_'),
+			serviceKey: localServiceKey.replace(/-/g, '_'),
 			credentialKeys: credentialKeys,
 			map: credKeysToScaffolderKeysMap,
 			cloudFoundryKey: this.cloudFoundryName,

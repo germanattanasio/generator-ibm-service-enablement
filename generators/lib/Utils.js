@@ -214,8 +214,20 @@ function addServicesToPipelineYamlAsync(args) {
 	})
 }
 
+/**
+*  Some Spring dependencies need a specific service name
+*/
+const SPRING_SERVICE_KEY_MAP = 
+{
+	"cloud-object-storage" : "cos"
+}
+
+function getSpringServiceKey(regularServiceKey) {
+	return SPRING_SERVICE_KEY_MAP[regularServiceKey] || regularServiceKey;
+}
 
 module.exports = {
+	getSpringServiceKey: getSpringServiceKey,
 	addServicesEnvToHelmChartAsync: addServicesEnvToHelmChartAsync,
 	addServicesToPipelineYamlAsync: addServicesToPipelineYamlAsync
 };
