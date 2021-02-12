@@ -36,7 +36,7 @@
     "yeoman-generator": "^3.2.0"
   },
   "devDependencies": {
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "chai": "^4.2.0",
     "cors": "^2.8.5",
     "coveralls": "^3.0.2",
